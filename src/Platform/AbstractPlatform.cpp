@@ -1,8 +1,8 @@
 #include "AbstractPlatform.h"
 #include <regex>
-#include "../Util/util.h"
 #include "Postgresql.h"
 #include "Mysql.h"
+#include "../Util/util.h"
 
 Platform::Platform() {
 
@@ -141,6 +141,14 @@ void Platform::connect() {
     throw std::runtime_error("connect() called from abstract platform");
 }
 
+Platform::~Platform() {
+
+
+}
+
+std::vector<std::vector<std::string>> Platform::execute(std::string sql) {
+    return std::vector<std::vector<std::string>>();
+}
 
 
 

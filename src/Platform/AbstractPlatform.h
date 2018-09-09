@@ -19,9 +19,13 @@ private:
 public:
     Platform();
 
-    std::vector<std::string> getTables();
+    virtual ~Platform();
 
-    void connect();
+    virtual std::vector<std::string> getTables();
+
+    virtual void connect();
+
+    virtual std::vector<std::vector<std::string>> execute(std::string sql);
 
     bool isPostgresql();
 

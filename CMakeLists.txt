@@ -9,7 +9,7 @@ message("Make sure you have libqxx-dev, postgresql-server-dev-all")
 find_package(PQXX REQUIRED)
 
 if (NOT PQXX_FOUND)
-    message(FATAL_ERROR  "Please install libpqxx-dev")
+    message(FATAL_ERROR "Please install libpqxx-dev")
     return()
 endif ()
 
@@ -22,7 +22,13 @@ set(
         src/Initializer.h
         src/Platform/AbstractPlatform.cpp
         src/Platform/AbstractPlatform.h
-        src/Platform/Postgresql.cpp src/Platform/Postgresql.h src/Platform/Mysql.cpp src/Platform/Mysql.h src/Util/util.h)
+        src/Platform/Postgresql.cpp
+        src/Platform/Postgresql.h
+        src/Platform/Mysql.cpp
+        src/Platform/Mysql.h
+        src/Util/util.cpp
+        src/Util/util.h
+)
 
 add_executable(dsync ${SOURCES})
 target_link_libraries(dsync ${PQXX_LIBRARIES})

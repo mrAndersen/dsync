@@ -3,10 +3,10 @@
 
 #include <string>
 #include <vector>
-#include <algorithm>
 
-bool in_vector(const std::string &value, const std::vector<std::string> &array) {
-    return std::find(array.begin(), array.end(), value) != array.end();
-}
+std::string format(const std::string fmt, ...);
+
+bool in_vector(const std::string &value, const std::vector<std::string> &array);
+
 
 #endif //DSYNC_UTIL_H

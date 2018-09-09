@@ -7,6 +7,8 @@
 
 class Initializer {
 private:
+    int threads = 4;
+
     Platform *source = nullptr;
     Platform *target = nullptr;
 
@@ -19,6 +21,12 @@ public:
     Platform *getTarget() const;
 
     void printHelpMessage();
+
+    virtual ~Initializer();
+
+    int getThreads() const;
+
+    void setThreads(int threads);
 };
 
 

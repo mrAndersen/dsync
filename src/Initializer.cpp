@@ -39,3 +39,16 @@ void Initializer::printHelpMessage() {
     );
     exit(0);
 }
+
+Initializer::~Initializer() {
+    delete source;
+    delete target;
+}
+
+int Initializer::getThreads() const {
+    return threads;
+}
+
+void Initializer::setThreads(int threads) {
+    Initializer::threads = threads;
+}

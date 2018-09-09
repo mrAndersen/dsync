@@ -1,19 +1,58 @@
 #include <iostream>
 #include "src/Initializer.h"
+#include "src/Util/util.h"
 #include <pqxx/pqxx>
+#include <thread>
 
+const int BATCH_SIZE = 1000;
 
 int main(int argc, char *argv[]) {
     Initializer initializer(argc, argv);
 
     auto source = initializer.getSource();
     auto target = initializer.getTarget();
+    auto threads = initializer.getThreads();
 
 //    if (source->getType() != target->getType()) {
 //        throw std::runtime_error("Transfer between different platforms not yet supported");
 //    }
 
     auto tables = initializer.getSource()->getTables();
+    std::cout << format(
+            "source has %d tables, starting in %d thread",
+            std::to_string(tables.size()).c_str(),
+            threads
+    );
+
+    for (const auto &table:tables) {
+        int size = stoi(source->execute(format("select count(*) from %s", table.c_str()))[0][0]);
+        auto threadPortion = size / threads;
+
+
+        exit(1);
+        std::thread thread([&]() {
+
+
+        });
+        thread.detach();
+
+        bool downloading = true;
+        int offset = 0;
+
+        std::string pattern = "select * from %s limit %d offset %d";
+
+
+        while (downloading) {
+            auto sql = format(pattern, table.c_str(), BATCH_SIZE, offset);
+            auto buffer = source->execute(sql);
+
+
+            offset += BATCH_SIZE;
+            downloading = buffer.size() == BATCH_SIZE;
+        }
+
+
+    }
 
 
 //    try {
@@ -39,6 +78,7 @@ int main(int argc, char *argv[]) {
 //        return 1;
 //    }
 
-    std::cout << "Hello, World!" << std::endl;
+
+
     return 0;
 }

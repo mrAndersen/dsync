@@ -8,13 +8,15 @@ class Postgresql96 : public Platform {
 private:
     pqxx::connection *connection;
 public:
-    void execute(std::string sql);
+    std::vector<std::vector<std::string>> execute(std::string sql);
 
     std::vector<std::string> getTables();
 
     void connect();
 
     Postgresql96();
+
+    virtual ~Postgresql96();
 };
 
 

@@ -5,6 +5,9 @@
 #include <string>
 #include "Platform/AbstractPlatform.h"
 
+const int VERBOSITY_SILENT = 0;
+const int VERBOSITY_DEBUG = 4;
+
 class Initializer {
 private:
     int threads = 4;
@@ -14,6 +17,8 @@ private:
 
     std::vector<std::string> arguments;
 public:
+    int verbosity = VERBOSITY_SILENT;
+
     Initializer(int argc, char *argv[]);
 
     Platform *getSource() const;

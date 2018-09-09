@@ -16,6 +16,7 @@ if (NOT PQXX_FOUND)
 endif ()
 
 include_directories(${PQXX_INCLUDE_DIRS})
+include_directories(${PROJECT_SOURCE_DIR}/vendor/fmt/include)
 
 set(
         SOURCES

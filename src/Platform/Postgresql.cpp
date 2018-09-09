@@ -34,7 +34,7 @@ void Postgresql96::connect() {
                + getDbname() + "?port="
                + std::to_string(getPort()) + "&"
                + "connect_timeout=3";
-    connection = new pqxx::connection(dsn);
+    connection = new pqxx::connect_async(dsn);
     printf("connected to %s\n", dsn.c_str());
 }
 

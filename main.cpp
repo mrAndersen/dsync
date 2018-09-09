@@ -3,6 +3,8 @@
 #include "src/Util/util.h"
 #include <pqxx/pqxx>
 #include <thread>
+#include "fmt/format.h"
+#include "vendor/fmt/src/format.cc"
 
 const int BATCH_SIZE = 1000;
 
@@ -20,38 +22,60 @@ int main(int argc, char *argv[]) {
 
 
     auto tables = initializer.getSource()->getTables();
-    std::cout << format(
-            "source has %d tables, starting in %d threads",
-            std::to_string(tables.size()).c_str(),
-            threads
-    );
+    fmt::print("source has {} tables, starting in {} threads\n", std::to_string(tables.size()),
+               std::to_string(threads));
 
     for (const auto &table:tables) {
-        int size = stoi(source->execute(format("select count(*) from %s", table.c_str()))[0][0]);
+        int tableSize = stoi(source->execute(fmt::format("select count(*) from {}", table))[0][0]);
 
-        for (int i = 0; i < threads; ++i) {
-            std::thread thread([&i]() {
-                std::cout << std::to_string(i) + "\n";
+        if (initializer.verbosity == VERBOSITY_DEBUG) {
+            fmt::print("[debug] table = {}, size = {}\n", table, tableSize);
+        }
+
+        for (int threadIndex = 0; threadIndex < threads; ++threadIndex) {
+            std::thread thread([&threadIndex, &tableSize, &table, &threads, &initializer]() {
+                auto threadPortion = tableSize / threads;
+                auto startingOffset = (threadIndex - 1) * threadPortion;
+                auto endOffset = startingOffset + threadPortion;
+                bool downloading = true;
+                std::string pattern = "select * from {} limit {} offset {}";
+
+                if (initializer.verbosity == VERBOSITY_DEBUG) {
+                    fmt::print("[debug] thread = {}, portion = {}, start = {}, end = {}\n", threadIndex, threadPortion,
+                               startingOffset, endOffset);
+                }
+
+                auto offset = startingOffset;
+                while (downloading) {
+                    auto sql = fmt::format(pattern, table, BATCH_SIZE, offset);
+                    auto buffer = initializer.getSource()->execute(sql);
+
+                    offset += BATCH_SIZE;
+                    downloading = buffer.size() == BATCH_SIZE;
+                    exit(1);
+                }
+
+
             });
             thread.detach();
         }
 
 
         exit(0);
-        bool downloading = true;
-        int offset = 0;
-
-        std::string pattern = "select * from %s limit %d offset %d";
-
-
-        while (downloading) {
-            auto sql = format(pattern, table.c_str(), BATCH_SIZE, offset);
-            auto buffer = source->execute(sql);
-
-
-            offset += BATCH_SIZE;
-            downloading = buffer.size() == BATCH_SIZE;
-        }
+//        bool downloading = true;
+//        int offset = 0;
+//
+//        std::string pattern = "select * from %s limit %d offset %d";
+//
+//
+//        while (downloading) {
+//            auto sql = format(pattern, table.c_str(), BATCH_SIZE, offset);
+//            auto buffer = source->execute(sql);
+//
+//
+//            offset += BATCH_SIZE;
+//            downloading = buffer.size() == BATCH_SIZE;
+//        }
 
 
     }

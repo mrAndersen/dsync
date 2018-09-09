@@ -11,8 +11,12 @@ Initializer::Initializer(int argc, char **argv) {
     }
 
     for (const auto &argument:arguments) {
-        if (argument.find("--help") != std::string::npos) {
+        if (argument.find("--help") != -1) {
             printHelpMessage();
+        }
+
+        if (argument.find("-vvv") != -1) {
+            verbosity = VERBOSITY_DEBUG;
         }
     }
 

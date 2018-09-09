@@ -6,7 +6,7 @@
 
 class Postgresql96 : public Platform {
 private:
-    pqxx::connection *connection;
+    pqxx::connect_async *connection;
 public:
     std::vector<std::vector<std::string>> execute(std::string sql);
 

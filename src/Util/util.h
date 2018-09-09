@@ -4,7 +4,9 @@
 #include <string>
 #include <vector>
 
-std::string format(const std::string fmt, ...);
+template<typename ... Args>
+
+std::string format(const std::string &format, Args ... args);
 
 bool in_vector(const std::string &value, const std::vector<std::string> &array);
 

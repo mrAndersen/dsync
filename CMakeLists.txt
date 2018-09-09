@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.8)
 
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/deps)
 set(CMAKE_CXX_STANDARD 14)
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -pthread")
+
 
 message("Make sure you have libqxx-dev, postgresql-server-dev-all")
 

@@ -17,25 +17,27 @@ int main(int argc, char *argv[]) {
 //        throw std::runtime_error("Transfer between different platforms not yet supported");
 //    }
 
+
+
     auto tables = initializer.getSource()->getTables();
     std::cout << format(
-            "source has %d tables, starting in %d thread",
+            "source has %d tables, starting in %d threads",
             std::to_string(tables.size()).c_str(),
             threads
     );
 
     for (const auto &table:tables) {
         int size = stoi(source->execute(format("select count(*) from %s", table.c_str()))[0][0]);
-        auto threadPortion = size / threads;
+
+        for (int i = 0; i < threads; ++i) {
+            std::thread thread([&i]() {
+                std::cout << std::to_string(i) + "\n";
+            });
+            thread.detach();
+        }
 
 
-        exit(1);
-        std::thread thread([&]() {
-
-
-        });
-        thread.detach();
-
+        exit(0);
         bool downloading = true;
         int offset = 0;
 

@@ -5,8 +5,10 @@
 #include <thread>
 #include "fmt/format.h"
 #include "vendor/fmt/src/format.cc"
+#include "src/Util/Timer.h"
 
 int main(int argc, char *argv[]) {
+    Timer timer;
     Initializer initializer(argc, argv);
 
     auto sources = initializer.getSources();
@@ -49,6 +51,8 @@ int main(int argc, char *argv[]) {
     );
 
     for (const auto &table:sourceTables) {
+        timer.restart();
+
         int tableRows = stoi(firstSource->execute(fmt::format("select count(*) from {}", table))[0][0]);
         float tableSizeBytes = firstSource->getTableSize(table);
 
@@ -99,62 +103,50 @@ int main(int argc, char *argv[]) {
                 auto offset = startingOffset;
 
                 while (downloading) {
-                    auto sql = fmt::format(pattern, table, BATCH_SIZE, offset);
+                    std::string sql = "";
+
+                    sql = fmt::format(pattern, table, BATCH_SIZE, offset);
                     auto buffer = threadSource->execute(sql);
 
                     if (initializer.verbosity == VERBOSITY_DEBUG) {
                         fmt::print(
-                                "[debug] buffer fetched, size = {}",
+                                "[debug] buffer fetched, size = {}\n",
                                 buffer.size()
                         );
                     }
 
                     std::string insertSql = "insert into {} values ";
+                    std::vector<std::string> tmp;
 
                     for (const auto &row:buffer) {
-                        auto rowValue = "(" + implode(row, ",") + ")";
-                        insertSql.append(" ").append(rowValue);
+                        auto rowSql = "(" + implode_enclose(row, ",", "'") + ")";
+                        tmp.emplace_back(rowSql);
+                    }
+
+                    insertSql.append(implode(tmp, ","));
+                    sql = fmt::format(insertSql, table);
+                    threadTarget->execute(sql);
+
+                    if (initializer.verbosity == VERBOSITY_DEBUG) {
+                        fmt::print(
+                                "[debug] {} values inserted\n",
+                                buffer.size()
+                        );
                     }
 
                     offset += BATCH_SIZE;
                     downloading = buffer.size() == BATCH_SIZE;
-
-                    exit(0);
                 }
-
-
             });
             thread.join();
         }
 
-
-        exit(0);
+        fmt::print(
+                "table {} done in {:02.2f}s\n",
+                table,
+                timer.elapsedSeconds()
+        );
     }
-
-
-//    try {
-//        pqxx::connection C;
-//        std::cout << "Connected to " << C.dbname() << std::endl;
-//        pqxx::work W(C);
-//
-//        pqxx::result R = W.exec("SELECT name FROM employee");
-//
-//        std::cout << "Found " << R.size() << "employees:" << std::endl;
-//        for (auto row: R)
-//            std::cout << row[0].c_str() << std::endl;
-//
-//        std::cout << "Doubling all employees' salaries..." << std::endl;
-//        W.exec("UPDATE employee SET salary = salary*2");
-//
-//        std::cout << "Making changes definite: ";
-//        W.commit();
-//        std::cout << "OK." << std::endl;
-//    }
-//    catch (const std::exception &e) {
-//        std::cerr << e.what() << std::endl;
-//        return 1;
-//    }
-
 
 
     return 0;

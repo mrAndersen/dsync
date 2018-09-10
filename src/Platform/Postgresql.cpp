@@ -45,9 +45,45 @@ void Postgresql::connect() {
     connection = new pqxx::connection(dsn);
 }
 
+/**
+ * Get tables in relative order, first tables with 0 foreign keys, than 1, etc..
+ * this is needed to correctly import table data
+ * @return
+ */
 std::vector<std::string> Postgresql::getTables() {
     std::vector<std::string> result;
-    auto tables = execute("select tablename from pg_catalog.pg_tables where schemaname = 'public'");
+    std::string sql = R"(
+SELECT DISTINCT tablename,
+                fkeys
+FROM   (SELECT pgt1.tablename,
+               Count(*) AS fkeys
+        FROM   pg_tables pgt1
+               LEFT JOIN pg_class pgc
+                      ON pgt1.tablename = pgc.relname
+               LEFT JOIN pg_constraint pgct
+                      ON pgc.relfilenode = pgct.confrelid
+        WHERE  pgt1.schemaname = 'public'
+               AND contype = 'f'
+        GROUP  BY pgt1.tablename
+        UNION
+        SELECT pgtl.tablename,
+               0
+        FROM   pg_tables pgtl
+        WHERE  pgtl.schemaname = 'public'
+               AND tablename NOT IN (SELECT pgt1.tablename
+                                     FROM   pg_tables pgt1
+                                            LEFT JOIN pg_class pgc
+                                                   ON pgt1.tablename =
+                                                      pgc.relname
+                                            LEFT JOIN pg_constraint pgct
+                                                   ON pgc.relfilenode =
+                                                      pgct.confrelid
+                                     WHERE  pgt1.schemaname = 'public'
+                                            AND contype = 'f'
+                                     GROUP  BY pgt1.tablename)) _subq
+ORDER  BY fkeys ASC
+)";
+    auto tables = execute(sql);
 
     for (auto row: tables) {
         result.emplace_back(row[0]);

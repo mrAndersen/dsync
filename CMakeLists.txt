@@ -31,6 +31,8 @@ set(
         src/Platform/Mysql.h
         src/Util/util.cpp
         src/Util/util.h
+        src/Util/Timer.h
+        src/Util/Timer.cpp
 )
 
 add_executable(dsync ${SOURCES})

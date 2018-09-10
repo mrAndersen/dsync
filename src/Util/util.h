@@ -12,5 +12,6 @@ bool in_vector(const std::string &value, const std::vector<std::string> &array);
 
 std::string implode(const std::vector<std::string> &array, const std::string &delimiter);
 
+std::string implode_enclose(const std::vector<std::string> &array, const std::string &delimiter, const std::string &encloser);
 
 #endif //DSYNC_UTIL_H

@@ -25,7 +25,9 @@ public:
 
     virtual void connect();
 
-    virtual std::vector<std::vector<std::string>> execute(std::string sql);
+    virtual long int getTableSize(const std::string &table);
+
+    virtual std::vector<std::vector<std::string>> execute(const std::string &sql);
 
     bool isPostgresql();
 

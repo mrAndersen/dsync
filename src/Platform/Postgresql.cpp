@@ -1,15 +1,22 @@
 #include <pqxx/pqxx>
+#include <fmt/format.h>
 #include "Postgresql.h"
 
-Postgresql96::Postgresql96() {
+Postgresql::Postgresql() {
 
 }
 
-std::vector<std::vector<std::string>> Postgresql96::execute(std::string sql) {
+std::vector<std::vector<std::string>> Postgresql::execute(const std::string &sql) {
+    if (connection == nullptr) {
+        throw std::runtime_error(
+                fmt::format("connection to {} has not been established call connect() first", getDsn()));
+    }
+
     std::vector<std::vector<std::string>> result;
 
     pqxx::work work(*connection);
     pqxx::result rawResult = work.exec(sql);
+    work.commit();
 
     for (auto row: rawResult) {
         std::vector<std::string> tmp;
@@ -21,24 +28,24 @@ std::vector<std::vector<std::string>> Postgresql96::execute(std::string sql) {
         result.emplace_back(tmp);
     }
 
-
     return result;
 }
 
 
-void Postgresql96::connect() {
-    auto dsn = "postgresql://"
-               + getUsername() + ":"
-               + getPassword() + "@"
-               + getHost() + "/"
-               + getDbname() + "?port="
-               + std::to_string(getPort()) + "&"
-               + "connect_timeout=3";
-    connection = new pqxx::connect_async(dsn);
-    printf("connected to %s\n", dsn.c_str());
+void Postgresql::connect() {
+    auto dsn = fmt::format(
+            "postgresql://{}:{}@{}/{}?port={}&connect_timeout=3",
+            getUsername(),
+            getPassword(),
+            getHost(),
+            getDbname(),
+            getPort()
+    );
+
+    connection = new pqxx::connection(dsn);
 }
 
-std::vector<std::string> Postgresql96::getTables() {
+std::vector<std::string> Postgresql::getTables() {
     std::vector<std::string> result;
     auto tables = execute("select tablename from pg_catalog.pg_tables where schemaname = 'public'");
 
@@ -49,6 +56,11 @@ std::vector<std::string> Postgresql96::getTables() {
     return result;
 }
 
-Postgresql96::~Postgresql96() {
+Postgresql::~Postgresql() {
     delete connection;
+}
+
+long Postgresql::getTableSize(const std::string &table) {
+    auto size = stoi(execute(fmt::format("select pg_total_relation_size('{}')", table))[0][0]);
+    return size;
 }

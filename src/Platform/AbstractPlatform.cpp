@@ -90,20 +90,21 @@ Platform *Platform::createFromDsn(std::string dsn) {
     type = matches[1].str();
 
     if (type == "pgsql") {
-        auto platform = new Postgresql96();
+        auto platform = new Postgresql();
+        platform->setType(type);
         platform->setDsn(dsn);
         platform->setUsername(matches[2].str());
         platform->setPassword(matches[3].str());
         platform->setHost(matches[4].str());
         platform->setPort(std::stoi(matches[5].str()));
         platform->setDbname(matches[6].str());
-        platform->connect();
 
         return platform;
     }
 
     if (type == "mysql") {
         auto platform = new Mysql();
+        platform->setType(type);
         platform->setDsn(dsn);
         platform->setUsername(matches[2].str());
         platform->setPassword(matches[3].str());
@@ -146,8 +147,12 @@ Platform::~Platform() {
 
 }
 
-std::vector<std::vector<std::string>> Platform::execute(std::string sql) {
+std::vector<std::vector<std::string>> Platform::execute(const std::string &sql) {
     return std::vector<std::vector<std::string>>();
+}
+
+long int Platform::getTableSize(const std::string &) {
+    return 0;
 }
 
 

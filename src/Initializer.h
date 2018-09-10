@@ -4,26 +4,34 @@
 #include <vector>
 #include <string>
 #include "Platform/AbstractPlatform.h"
-
-const int VERBOSITY_SILENT = 0;
-const int VERBOSITY_DEBUG = 4;
+#include "Util/util.h"
 
 class Initializer {
 private:
-    int threads = 4;
+    int threads = 1;
 
-    Platform *source = nullptr;
-    Platform *target = nullptr;
+    std::vector<Platform*> sources;
+    std::vector<Platform*> targets;
 
     std::vector<std::string> arguments;
 public:
     int verbosity = VERBOSITY_SILENT;
 
+    bool clearTarget = false;
+
     Initializer(int argc, char *argv[]);
 
-    Platform *getSource() const;
+    Platform* getFirstSource();
 
-    Platform *getTarget() const;
+    Platform* getFirstTarget();
+
+    const std::vector<Platform *> &getSources() const;
+
+    void setSources(const std::vector<Platform *> &sources);
+
+    const std::vector<Platform *> &getTargets() const;
+
+    void setTargets(const std::vector<Platform *> &targets);
 
     void printHelpMessage();
 

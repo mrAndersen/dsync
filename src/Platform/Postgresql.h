@@ -4,19 +4,21 @@
 #include "AbstractPlatform.h"
 #include <pqxx/connection.hxx>
 
-class Postgresql96 : public Platform {
+class Postgresql : public Platform {
 private:
-    pqxx::connect_async *connection;
+    pqxx::connection *connection = nullptr;
 public:
-    std::vector<std::vector<std::string>> execute(std::string sql);
+    std::vector<std::vector<std::string>> execute(const std::string &sql);
 
     std::vector<std::string> getTables();
 
+    long getTableSize(const std::string &table) override;
+
     void connect();
 
-    Postgresql96();
+    Postgresql();
 
-    virtual ~Postgresql96();
+    virtual ~Postgresql();
 };
 
 

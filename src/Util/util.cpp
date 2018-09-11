@@ -4,6 +4,8 @@
 #include <vector>
 #include <memory>
 #include <cstring>
+#include <sstream>
+#include <iomanip>
 #include "util.h"
 
 bool in_vector(const std::string &value, const std::vector<std::string> &array) {
@@ -24,17 +26,49 @@ std::string implode(const std::vector<std::string> &array, const std::string &de
     return result;
 }
 
-std::string implode_enclose(const std::vector<std::string> &array, const std::string &delimiter, const std::string &encloser) {
-
+std::string implode_enclose_nulls(
+        const std::vector<std::string> &array,
+        const std::string &delimiter,
+        const std::string &platform
+) {
     std::string result;
 
     for (int i = 0; i < array.size(); ++i) {
-        if (i == array.size() - 1) {
-            result.append(encloser).append(array[i]).append(encloser);
+        if (array[i].empty()) {
+            result.append("null");
         } else {
-            result.append(encloser).append(array[i]).append(encloser).append(delimiter);
+            auto escaped = array[i];
+
+            if (platform == "pgsql") {
+                std::stringstream ss;
+                ss << std::quoted(array[i], '\'', '\'');
+                escaped = ss.str();
+            }
+
+            result.append(escaped);
+        }
+
+        if (i != array.size() - 1) {
+            result.append(delimiter);
         }
     }
 
     return result;
+}
+
+long vector_size_bytes(const std::vector<std::string> &array) {
+    long size = 0;
+    size = sizeof(std::vector<std::string>) + (sizeof(std::string) * array.size());
+
+    return size;
+}
+
+long vector_vector_size_bytes(const std::vector<std::vector<std::string>> &array) {
+    long size = 0;
+
+    for (const auto &row:array) {
+        size += vector_size_bytes(row);
+    }
+
+    return size;
 }

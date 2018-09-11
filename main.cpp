@@ -52,34 +52,66 @@ int main(int argc, char *argv[]) {
 
     for (const auto &table:sourceTables) {
         timer.restart();
+        auto escapedTable = std::string("\"").append(table).append("\"");
 
-        int tableRows = stoi(firstSource->execute(fmt::format("select count(*) from {}", table))[0][0]);
+        int tableRows = stoi(firstSource->execute(fmt::format("select count(*) from {}", escapedTable))[0][0]);
         float tableSizeBytes = firstSource->getTableSize(table);
 
-        fmt::print(
-                "processing table = {}, rows = {}, size = {:02.2f}Mb\n",
-                table,
-                tableRows,
-                tableSizeBytes / 1024 / 1024
-        );
+        if (initializer.verbosity == VERBOSITY_DEBUG) {
+            fmt::print(
+                    "processing table = {}, rows = {}, size = {:.2f}Mb\n",
+                    table,
+                    tableRows,
+                    tableSizeBytes / 1024 / 1024
+            );
+        }
 
         if (initializer.clearTarget) {
-            fmt::print_colored(
-                    fmt::yellow,
-                    "clear option passed, target table {} will be truncated\n",
-                    table
-            );
+
+            if (initializer.verbosity == VERBOSITY_DEBUG) {
+                fmt::print_colored(
+                        fmt::yellow,
+                        "clear option passed, target table {} will be truncated\n",
+                        table
+                );
+            }
 
             firstTarget->execute(
                     fmt::format(
-                            "truncate table {}",
-                            table
+                            "truncate table {} cascade",
+                            escapedTable
                     )
             );
         }
 
+        if (firstTarget->isPostgresql()) {
+            firstTarget->execute(fmt::format("alter table {} disable trigger all", escapedTable));
+
+            if (initializer.verbosity == VERBOSITY_DEBUG) {
+                fmt::print(
+                        "[debug] disabled triggers for postgres for table {}\n",
+                        table
+                );
+            }
+        }
+
+        auto targetPlatform = firstTarget->getType();
+        auto sourcePlatform = firstSource->getType();
+        auto medianDownloadSpeed = 0.f;
+        auto downloadIterations = 0;
+
         for (int threadIndex = 0; threadIndex < threads; ++threadIndex) {
-            std::thread thread([&threadIndex, &tableRows, &table, &threads, &initializer]() {
+            std::thread thread([
+                                       &threadIndex,
+                                       &tableRows,
+                                       &table,
+                                       &escapedTable,
+                                       &threads,
+                                       &initializer,
+                                       &targetPlatform,
+                                       &medianDownloadSpeed,
+                                       &downloadIterations
+                               ]() {
 
                 auto threadPortion = std::floor(tableRows / threads);
                 auto startingOffset = threadIndex * threadPortion;
@@ -103,29 +135,43 @@ int main(int argc, char *argv[]) {
                 auto offset = startingOffset;
 
                 while (downloading) {
-                    std::string sql = "";
 
-                    sql = fmt::format(pattern, table, BATCH_SIZE, offset);
-                    auto buffer = threadSource->execute(sql);
+                    Timer fetchTimer;
+                    auto selectSql = fmt::format(pattern, escapedTable, BATCH_SIZE, offset);
+
+                    fetchTimer.start();
+                    auto buffer = threadSource->execute(selectSql);
+                    fetchTimer.stop();
+
+                    float bufferSizeMbytes = vector_vector_size_bytes(buffer) / 1024.f / 1024.f;
+                    float fetchTime = fetchTimer.elapsedSeconds();
+                    float speed = (1 / fetchTime * bufferSizeMbytes);
+                    medianDownloadSpeed += speed;
+                    downloadIterations++;
 
                     if (initializer.verbosity == VERBOSITY_DEBUG) {
                         fmt::print(
-                                "[debug] buffer fetched, size = {}\n",
-                                buffer.size()
+                                "[debug] buffer fetched, size = {}, speed = {:.4f}Mb/s\n",
+                                buffer.size(),
+                                speed
                         );
+                    }
+
+                    if (buffer.empty()) {
+                        break;
                     }
 
                     std::string insertSql = "insert into {} values ";
                     std::vector<std::string> tmp;
 
                     for (const auto &row:buffer) {
-                        auto rowSql = "(" + implode_enclose(row, ",", "'") + ")";
+                        auto rowSql = "(" + implode_enclose_nulls(row, ",", targetPlatform) + ")";
                         tmp.emplace_back(rowSql);
                     }
 
                     insertSql.append(implode(tmp, ","));
-                    sql = fmt::format(insertSql, table);
-                    threadTarget->execute(sql);
+                    auto insertSqlFormatted = fmt::format(insertSql, escapedTable);
+                    threadTarget->execute(insertSqlFormatted);
 
                     if (initializer.verbosity == VERBOSITY_DEBUG) {
                         fmt::print(
@@ -136,16 +182,43 @@ int main(int argc, char *argv[]) {
 
                     offset += BATCH_SIZE;
                     downloading = buffer.size() == BATCH_SIZE;
+
+                    if (initializer.verbosity == VERBOSITY_DEBUG) {
+                        fmt::print(
+                                "[debug] offset = {}\n",
+                                offset
+                        );
+                    }
                 }
             });
             thread.join();
         }
 
+        if (firstTarget->isPostgresql()) {
+            firstTarget->execute(fmt::format("alter table {} enable trigger all", escapedTable));
+
+            if (initializer.verbosity == VERBOSITY_DEBUG) {
+                fmt::print(
+                        "[debug] enabled triggers for postgres for table {}\n",
+                        table
+                );
+            }
+        }
+
+        fmt::print_colored(fmt::green, "\t✔ ");
         fmt::print(
-                "table {} done in {:02.2f}s\n",
+                "{} [{:.2f}s] [{} rows] [{:.4f}Mb/s] ",
                 table,
-                timer.elapsedSeconds()
+                timer.elapsedSeconds(),
+                tableRows,
+                (medianDownloadSpeed / downloadIterations)
         );
+
+        if (initializer.clearTarget) {
+            fmt::print_colored(fmt::yellow, "[T]\n");
+        } else {
+            fmt::print_colored(fmt::green, "[A]\n");
+        }
     }
 
 

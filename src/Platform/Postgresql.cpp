@@ -1,5 +1,6 @@
 #include <pqxx/pqxx>
 #include <fmt/format.h>
+#include <iomanip>
 #include "Postgresql.h"
 
 Postgresql::Postgresql() {
@@ -45,43 +46,13 @@ void Postgresql::connect() {
     connection = new pqxx::connection(dsn);
 }
 
-/**
- * Get tables in relative order, first tables with 0 foreign keys, than 1, etc..
- * this is needed to correctly import table data
- * @return
- */
+
 std::vector<std::string> Postgresql::getTables() {
     std::vector<std::string> result;
     std::string sql = R"(
-SELECT DISTINCT tablename,
-                fkeys
-FROM   (SELECT pgt1.tablename,
-               Count(*) AS fkeys
-        FROM   pg_tables pgt1
-               LEFT JOIN pg_class pgc
-                      ON pgt1.tablename = pgc.relname
-               LEFT JOIN pg_constraint pgct
-                      ON pgc.relfilenode = pgct.confrelid
-        WHERE  pgt1.schemaname = 'public'
-               AND contype = 'f'
-        GROUP  BY pgt1.tablename
-        UNION
-        SELECT pgtl.tablename,
-               0
-        FROM   pg_tables pgtl
-        WHERE  pgtl.schemaname = 'public'
-               AND tablename NOT IN (SELECT pgt1.tablename
-                                     FROM   pg_tables pgt1
-                                            LEFT JOIN pg_class pgc
-                                                   ON pgt1.tablename =
-                                                      pgc.relname
-                                            LEFT JOIN pg_constraint pgct
-                                                   ON pgc.relfilenode =
-                                                      pgct.confrelid
-                                     WHERE  pgt1.schemaname = 'public'
-                                            AND contype = 'f'
-                                     GROUP  BY pgt1.tablename)) _subq
-ORDER  BY fkeys ASC
+SELECT table_name
+FROM information_schema.tables
+WHERE table_schema = 'public'
 )";
     auto tables = execute(sql);
 
@@ -99,4 +70,56 @@ Postgresql::~Postgresql() {
 long Postgresql::getTableSize(const std::string &table) {
     auto size = stoi(execute(fmt::format("select pg_total_relation_size('{}')", table))[0][0]);
     return size;
+}
+
+void Postgresql::refreshDatabaseInfo() {
+    std::string sql = R"(
+SELECT * FROM information_schema.columns
+WHERE table_schema = 'public'
+    )";
+    databaseInfo = execute(sql);
+}
+
+bool Postgresql::isTableFieldNullable(const std::string &table, const int &fieldIndex) {
+    std::vector<std::vector<std::string>> tableColumns;
+
+    for (auto node:databaseInfo) {
+        if (node[2] == table) {
+            tableColumns.emplace_back(node);
+        }
+    }
+
+    return tableColumns[fieldIndex][6] == "YES";
+}
+
+std::string Postgresql::implodeRow(
+        const std::string &table,
+        const std::vector<std::string> &array
+) {
+    std::string result;
+    std::string delimiter = ",";
+
+    for (int i = 0; i < array.size(); ++i) {
+        if (array[i].empty()) {
+            if (isTableFieldNullable(table, i)) {
+                result.append("null");
+            } else {
+                result.append("''");
+            }
+        } else {
+            auto escaped = array[i];
+
+            std::stringstream ss;
+            ss << std::quoted(array[i], '\'', '\'');
+            escaped = ss.str();
+
+            result.append(escaped);
+        }
+
+        if (i != array.size() - 1) {
+            result.append(delimiter);
+        }
+    }
+
+    return result;
 }

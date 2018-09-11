@@ -144,15 +144,30 @@ void Platform::connect() {
 
 Platform::~Platform() {
 
-
 }
 
 std::vector<std::vector<std::string>> Platform::execute(const std::string &sql) {
-    return std::vector<std::vector<std::string>>();
+    throw std::runtime_error("execute() called from abstract platform");
 }
 
 long int Platform::getTableSize(const std::string &) {
-    return 0;
+    throw std::runtime_error("getTableSize() called from abstract platform");
+}
+
+void Platform::refreshDatabaseInfo() {
+    throw std::runtime_error("refreshDatabaseInfo() called from abstract platform");
+}
+
+bool Platform::isTableFieldNullable(const std::string &table, const int &fieldIndex) {
+    throw std::runtime_error("isTableFieldNullable() called from abstract platform");
+}
+
+std::string Platform::implodeRow(const std::string &table, const std::vector<std::string> &array) {
+    throw std::runtime_error("implodeRow() called from abstract platform");
+}
+
+const std::vector<std::vector<std::string>> &Platform::getDatabaseInfo() const {
+    return databaseInfo;
 }
 
 

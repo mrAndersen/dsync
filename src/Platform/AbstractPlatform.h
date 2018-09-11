@@ -5,7 +5,7 @@
 #include <vector>
 
 class Platform {
-private:
+protected:
     std::string dsn;
 
     std::string host;
@@ -16,10 +16,13 @@ private:
     std::string password;
 
     std::string type;
+    std::vector<std::vector<std::string>> databaseInfo;
 public:
     Platform();
 
     virtual ~Platform();
+
+    const std::vector<std::vector<std::string>> &getDatabaseInfo() const;
 
     virtual std::vector<std::string> getTables();
 
@@ -27,7 +30,13 @@ public:
 
     virtual long int getTableSize(const std::string &table);
 
+    virtual void refreshDatabaseInfo();
+
     virtual std::vector<std::vector<std::string>> execute(const std::string &sql);
+
+    virtual bool isTableFieldNullable(const std::string &table, const int &fieldIndex);
+
+    virtual std::string implodeRow(const std::string &table, const std::vector<std::string> &array);
 
     bool isPostgresql();
 

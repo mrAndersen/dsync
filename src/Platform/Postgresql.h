@@ -14,6 +14,12 @@ public:
 
     long getTableSize(const std::string &table) override;
 
+    void refreshDatabaseInfo() override;
+
+    bool isTableFieldNullable(const std::string &table, const int &fieldIndex) override;
+
+    std::string implodeRow(const std::string &table, const std::vector<std::string> &array) override;
+
     void connect();
 
     Postgresql();

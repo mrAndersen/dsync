@@ -7,6 +7,7 @@
 #include <sstream>
 #include <iomanip>
 #include "util.h"
+#include "../Platform/AbstractPlatform.h"
 
 bool in_vector(const std::string &value, const std::vector<std::string> &array) {
     return std::find(array.begin(), array.end(), value) != array.end();
@@ -20,36 +21,6 @@ std::string implode(const std::vector<std::string> &array, const std::string &de
             result.append(array[i]);
         } else {
             result.append(array[i]).append(delimiter);
-        }
-    }
-
-    return result;
-}
-
-std::string implode_enclose_nulls(
-        const std::vector<std::string> &array,
-        const std::string &delimiter,
-        const std::string &platform
-) {
-    std::string result;
-
-    for (int i = 0; i < array.size(); ++i) {
-        if (array[i].empty()) {
-            result.append("null");
-        } else {
-            auto escaped = array[i];
-
-            if (platform == "pgsql") {
-                std::stringstream ss;
-                ss << std::quoted(array[i], '\'', '\'');
-                escaped = ss.str();
-            }
-
-            result.append(escaped);
-        }
-
-        if (i != array.size() - 1) {
-            result.append(delimiter);
         }
     }
 

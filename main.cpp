@@ -6,10 +6,12 @@
 #include "fmt/format.h"
 #include "vendor/fmt/src/format.cc"
 #include "src/Util/Timer.h"
+#include "src/Util/Analayzer.h"
 
 int main(int argc, char *argv[]) {
     Timer timer;
     Initializer initializer(argc, argv);
+    Analayzer analyzer;
 
     auto sources = initializer.getSources();
     auto targets = initializer.getTargets();
@@ -17,6 +19,9 @@ int main(int argc, char *argv[]) {
 
     auto firstSource = initializer.getFirstSource();
     auto firstTarget = initializer.getFirstTarget();
+
+    analyzer.validatePlatforms(firstSource, firstTarget);
+    fmt::print(analyzer.getCompareMessage());
 
     for (auto platform:sources) {
         platform->connect();
@@ -52,10 +57,14 @@ int main(int argc, char *argv[]) {
 
     for (const auto &table:sourceTables) {
         timer.restart();
+
+        firstTarget->refreshTableInfo(table);
         auto escapedTable = std::string("\"").append(table).append("\"");
 
         int tableRows = stoi(firstSource->execute(fmt::format("select count(*) from {}", escapedTable))[0][0]);
         float tableSizeBytes = firstSource->getTableSize(table);
+
+        fmt::print_colored(fmt::green, "\tO {}...", table);
 
         if (initializer.verbosity == VERBOSITY_DEBUG) {
             fmt::print(
@@ -95,8 +104,6 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        auto targetPlatform = firstTarget->getType();
-        auto sourcePlatform = firstSource->getType();
         auto medianDownloadSpeed = 0.f;
         auto downloadIterations = 0;
 
@@ -108,7 +115,7 @@ int main(int argc, char *argv[]) {
                                        &escapedTable,
                                        &threads,
                                        &initializer,
-                                       &targetPlatform,
+                                       firstTarget,
                                        &medianDownloadSpeed,
                                        &downloadIterations
                                ]() {
@@ -162,16 +169,16 @@ int main(int argc, char *argv[]) {
                     }
 
                     std::string insertSql = "insert into {} values ";
+                    insertSql = fmt::format(insertSql, escapedTable);
                     std::vector<std::string> tmp;
 
                     for (const auto &row:buffer) {
-                        auto rowSql = "(" + implode_enclose_nulls(row, ",", targetPlatform) + ")";
+                        auto rowSql = "(" + firstTarget->implodeRow(table, row) + ")";
                         tmp.emplace_back(rowSql);
                     }
 
                     insertSql.append(implode(tmp, ","));
-                    auto insertSqlFormatted = fmt::format(insertSql, escapedTable);
-                    threadTarget->execute(insertSqlFormatted);
+                    threadTarget->execute(insertSql);
 
                     if (initializer.verbosity == VERBOSITY_DEBUG) {
                         fmt::print(
@@ -205,7 +212,7 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        fmt::print_colored(fmt::green, "\t✔ ");
+        fmt::print_colored(fmt::green, "\r\t✔ ");
         fmt::print(
                 "{} [{:.2f}s] [{} rows] [{:.4f}Mb/s] ",
                 table,

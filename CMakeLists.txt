@@ -33,7 +33,7 @@ set(
         src/Util/util.h
         src/Util/Timer.h
         src/Util/Timer.cpp
-)
+        src/Util/Analayzer.cpp src/Util/Analayzer.h)
 
 add_executable(dsync ${SOURCES})
 target_link_libraries(dsync ${PQXX_LIBRARIES})

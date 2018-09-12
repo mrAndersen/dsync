@@ -20,8 +20,8 @@ int main(int argc, char *argv[]) {
     auto firstSource = initializer.getFirstSource();
     auto firstTarget = initializer.getFirstTarget();
 
-    analyzer.validatePlatforms(firstSource, firstTarget);
-    fmt::print(analyzer.getCompareMessage());
+//    analyzer.validatePlatforms(firstSource, firstTarget);
+//    fmt::print(analyzer.getCompareMessage());
 
     for (auto platform:sources) {
         platform->connect();
@@ -47,6 +47,9 @@ int main(int argc, char *argv[]) {
             firstTarget->getType()
     );
 
+    firstTarget->refreshDatabaseInfo();
+    firstSource->refreshDatabaseInfo();
+
     auto sourceTables = firstSource->getTables();
 
     fmt::print(
@@ -57,8 +60,6 @@ int main(int argc, char *argv[]) {
 
     for (const auto &table:sourceTables) {
         timer.restart();
-
-        firstTarget->refreshTableInfo(table);
         auto escapedTable = std::string("\"").append(table).append("\"");
 
         int tableRows = stoi(firstSource->execute(fmt::format("select count(*) from {}", escapedTable))[0][0]);

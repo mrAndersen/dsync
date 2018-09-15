@@ -5,7 +5,7 @@
 #include <vector>
 #include "../Platform/AbstractPlatform.h"
 
-const int BATCH_SIZE = 50000;
+const int BATCH_SIZE = 10000;
 const int VERBOSITY_SILENT = 0;
 const int VERBOSITY_DEBUG = 4;
 

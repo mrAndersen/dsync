@@ -1,6 +1,7 @@
 #include <stdexcept>
 #include "Initializer.h"
 #include "Util/util.h"
+#include <regex>
 
 Initializer::Initializer(int argc, char **argv) {
     if (argc < 3) {
@@ -22,6 +23,14 @@ Initializer::Initializer(int argc, char **argv) {
 
         if (argument.find("--clear") != -1) {
             clearTarget = true;
+        }
+
+        if (argument.find("--threads") != -1) {
+            std::smatch matches;
+            std::regex regex(R"(--threads=(\d+))", std::regex_constants::ECMAScript | std::regex_constants::icase);
+
+            std::regex_search(argument, matches, regex);
+            threads = stoi(matches[1].str());
         }
     }
 

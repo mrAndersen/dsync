@@ -170,6 +170,10 @@ const std::vector<std::vector<std::string>> &Platform::getDatabaseInfo() const {
     return databaseInfo;
 }
 
+std::string Platform::getTableDdl(const std::string &table) {
+    throw std::runtime_error("getTableDdl() called from abstract platform");
+}
+
 
 
 

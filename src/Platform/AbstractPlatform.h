@@ -38,6 +38,8 @@ public:
 
     virtual std::string implodeRow(const std::string &table, const std::vector<std::string> &array);
 
+    virtual std::string getTableDdl(const std::string &table);
+
     bool isPostgresql();
 
     bool isMysql();

@@ -6,12 +6,10 @@
 #include "fmt/format.h"
 #include "vendor/fmt/src/format.cc"
 #include "src/Util/Timer.h"
-#include "src/Util/Analayzer.h"
 
 int main(int argc, char *argv[]) {
     Timer timer;
     Initializer initializer(argc, argv);
-    Analayzer analyzer;
 
     auto sources = initializer.getSources();
     auto targets = initializer.getTargets();
@@ -19,9 +17,6 @@ int main(int argc, char *argv[]) {
 
     auto firstSource = initializer.getFirstSource();
     auto firstTarget = initializer.getFirstTarget();
-
-//    analyzer.validatePlatforms(firstSource, firstTarget);
-//    fmt::print(analyzer.getCompareMessage());
 
     for (auto platform:sources) {
         platform->connect();
@@ -58,6 +53,13 @@ int main(int argc, char *argv[]) {
             std::to_string(threads)
     );
 
+    if (initializer.verbosity == VERBOSITY_DEBUG) {
+        fmt::print_colored(
+                fmt::yellow,
+                "clear option passed, all target tables will be dropped\n"
+        );
+    }
+
     for (const auto &table:sourceTables) {
         timer.restart();
         auto escapedTable = std::string("\"").append(table).append("\"");
@@ -65,44 +67,54 @@ int main(int argc, char *argv[]) {
         int tableRows = stoi(firstSource->execute(fmt::format("select count(*) from {}", escapedTable))[0][0]);
         float tableSizeBytes = firstSource->getTableSize(table);
 
-        fmt::print_colored(fmt::green, "\tO {}...", table);
+        fmt::print_colored(
+                fmt::green, "\tO {}, rows = {}, size = {:.2f}Mb",
+                table,
+                tableRows,
+                tableSizeBytes / 1024 / 1024
+        );
 
         if (initializer.verbosity == VERBOSITY_DEBUG) {
-            fmt::print(
-                    "processing table = {}, rows = {}, size = {:.2f}Mb\n",
-                    table,
-                    tableRows,
-                    tableSizeBytes / 1024 / 1024
-            );
+            fmt::print("\n");
         }
 
         if (initializer.clearTarget) {
-
-            if (initializer.verbosity == VERBOSITY_DEBUG) {
-                fmt::print_colored(
-                        fmt::yellow,
-                        "clear option passed, target table {} will be truncated\n",
-                        table
-                );
-            }
-
             firstTarget->execute(
                     fmt::format(
-                            "truncate table {} cascade",
+                            "drop table if exists {} cascade",
                             escapedTable
                     )
             );
-        }
-
-        if (firstTarget->isPostgresql()) {
-            firstTarget->execute(fmt::format("alter table {} disable trigger all", escapedTable));
 
             if (initializer.verbosity == VERBOSITY_DEBUG) {
                 fmt::print(
-                        "[debug] disabled triggers for postgres for table {}\n",
+                        "[debug] table {} dropped",
                         table
                 );
             }
+        }
+
+        if (!initializer.clearTarget) {
+            if (firstTarget->isPostgresql()) {
+                firstTarget->execute(fmt::format("alter table {} disable trigger all", escapedTable));
+
+                if (initializer.verbosity == VERBOSITY_DEBUG) {
+                    fmt::print(
+                            "[debug] disabled triggers for postgres for table {}\n",
+                            table
+                    );
+                }
+            }
+        }
+
+        if (initializer.verbosity == VERBOSITY_DEBUG) {
+            fmt::print(
+                    "[debug] recreating table {}\n",
+                    table
+            );
+
+            auto createSql = firstSource->getTableDdl(table);
+            firstTarget->execute(createSql);
         }
 
         auto medianDownloadSpeed = 0.f;
@@ -120,8 +132,14 @@ int main(int argc, char *argv[]) {
                                        &medianDownloadSpeed,
                                        &downloadIterations
                                ]() {
+                int threadPortion = 0;
 
-                auto threadPortion = std::floor(tableRows / threads);
+                if (tableRows < BATCH_SIZE) {
+                    threadPortion = tableRows;
+                } else {
+                    threadPortion = (int) std::ceil(tableRows / threads);
+                }
+
                 auto startingOffset = threadIndex * threadPortion;
                 auto endOffset = startingOffset + threadPortion;
                 bool downloading = true;
@@ -132,7 +150,7 @@ int main(int argc, char *argv[]) {
 
                 if (initializer.verbosity == VERBOSITY_DEBUG) {
                     fmt::print(
-                            "[debug] thread = {}, portion = {}, start = {}, end = {}\n",
+                            "[debug_{}] portion = {}, start = {}, end = {}\n",
                             threadIndex,
                             threadPortion,
                             startingOffset,
@@ -143,7 +161,6 @@ int main(int argc, char *argv[]) {
                 auto offset = startingOffset;
 
                 while (downloading) {
-
                     Timer fetchTimer;
                     auto selectSql = fmt::format(pattern, escapedTable, BATCH_SIZE, offset);
 
@@ -159,7 +176,8 @@ int main(int argc, char *argv[]) {
 
                     if (initializer.verbosity == VERBOSITY_DEBUG) {
                         fmt::print(
-                                "[debug] buffer fetched, size = {}, speed = {:.4f}Mb/s\n",
+                                "[debug_{}] buffer fetched, size = {}, speed = {:.4f}Mb/s\n",
+                                threadIndex,
                                 buffer.size(),
                                 speed
                         );
@@ -183,7 +201,8 @@ int main(int argc, char *argv[]) {
 
                     if (initializer.verbosity == VERBOSITY_DEBUG) {
                         fmt::print(
-                                "[debug] {} values inserted\n",
+                                "[debug_{}] {} values inserted\n",
+                                threadIndex,
                                 buffer.size()
                         );
                     }
@@ -193,7 +212,8 @@ int main(int argc, char *argv[]) {
 
                     if (initializer.verbosity == VERBOSITY_DEBUG) {
                         fmt::print(
-                                "[debug] offset = {}\n",
+                                "[debug_{}] offset = {}\n",
+                                threadIndex,
                                 offset
                         );
                     }

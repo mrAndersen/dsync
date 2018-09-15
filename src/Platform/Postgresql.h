@@ -20,6 +20,8 @@ public:
 
     std::string implodeRow(const std::string &table, const std::vector<std::string> &array) override;
 
+    std::string getTableDdl(const std::string &table) override;
+
     void connect();
 
     Postgresql();
